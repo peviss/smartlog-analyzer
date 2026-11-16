@@ -1,0 +1,52 @@
+name: smartlog
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-smartlog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-smartlog}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # Not published to the host by default. Uncomment to connect with psql/DBeaver:
+    # ports: ["5432:5432"]
+
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-smartlog}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-smartlog}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend, frontend]
+    expose: ["8000"]
+    restart: unless-stopped
+
+  nginx:
+    # Serves the web UI (built from src/frontend) and proxies /api to the app.
+    build:
+      context: .
+      dockerfile: docker/nginx.Dockerfile
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    depends_on:
+      app:
+        condition: service_healthy
+    networks: [frontend]
+    restart: unless-stopped
+
+networks:
+  frontend: {}
+  backend:
+    internal: true # the database is not reachable from outside the compose network
+
+volumes:
+  pgdata: {}
