@@ -1,0 +1,33 @@
+[project]
+name = "smartlog-analyzer"
+version = "0.1.0"
+description = "Ingest microservice logs, query them and get AI-generated insights."
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+asyncio_default_test_loop_scope = "function"
+testpaths = ["tests"]
+# src layout: the `app` package lives in src/; `db` (seed) and `tests` live at the root.
+pythonpath = ["src", "."]
+markers = [
+    "integration: needs a PostgreSQL database (TEST_DATABASE_URL)",
+]
+filterwarnings = ["ignore::DeprecationWarning:asgi_lifespan.*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+src = ["src", "."]
+# The web UI (TypeScript) lives in src/frontend; keep tools out of node_modules and the build.
+extend-exclude = ["src/frontend"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC"]
+# Line length is enforced by `ruff format`; long string literals are left as is.
+ignore = ["B008", "E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["api", "db", "tests"]
+known-third-party = ["alembic"]
