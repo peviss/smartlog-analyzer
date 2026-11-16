@@ -4,145 +4,231 @@ Prototipo de una herramienta interna que recibe logs de varios microservicios, l
 
 ## 1. Vista general
 
+Componentes, cómo se comunican (protocolo, puerto y red de Docker) y los tres flujos de datos: **① ingesta** (verde), **② consulta** (azul) y **③ análisis** (naranja).
+
 ```mermaid
-flowchart LR
-    subgraph Productores
-        MS1[orders-api]
-        MS2[payments-api]
-        MS3[auth-service]
-        DEV[Ingeniero / UI / curl]
-    end
+flowchart TB
+    U["<b>Usuario</b><br/>navegador (UI) o curl"]
 
-    subgraph Docker Compose
-        NGINX[Nginx :8080<br/>UI estática en /<br/>reverse proxy de /api]
+    subgraph compose["Docker Compose"]
+        NGINX["<b>Nginx</b><br/>único puerto publicado: 8080<br/>sirve la UI compilada<br/>reenvía /api y /docs"]
 
-        subgraph API [FastAPI app :8000]
-            R[Routers<br/>validación Pydantic]
-            S[Servicios<br/>LogRepository<br/>AnalysisService]
-            P[Preprocesamiento<br/>patrones + estadísticas]
-            L[LogAnalyzer<br/>preparación, deadline, errores]
-            G[Agente Pydantic AI<br/>output_type=AnalysisResult]
-            I{{pydantic_ai Model}}
-            M[MockModel<br/>FunctionModel]
-            A[AnthropicModel]
+        subgraph app["API · FastAPI :8000"]
+            direction TB
+            R["<b>Routers</b><br/>validación con Pydantic"]
+            ING["<b>Ingesta</b><br/>validación ECS<br/>parser de texto, JSON y CSV"]
+            REPO["<b>Repositorio</b><br/>SQLAlchemy async<br/>filtros, stats, deduplicación"]
+            AN["<b>Análisis</b><br/>patrones + estadísticas<br/>agente Pydantic AI"]
         end
 
-        DB[(PostgreSQL 16<br/>log_entries<br/>analyses<br/>analysis_logs)]
+        DB[("<b>PostgreSQL 16</b> :5432<br/>log_entries<br/>analyses")]
     end
 
-    CLAUDE[(API de Anthropic)]
+    LLM["<b>Proveedor de LLM</b><br/>Anthropic · OpenAI · Gemini · Ollama<br/><i>o el mock, dentro de la app</i>"]
 
-    MS1 & MS2 & MS3 -- "POST /api/logs(/batch)<br/>documentos ECS" --> NGINX
-    DEV -- "GET /api/logs, /stats<br/>POST /analyze<br/>GET /api/analysis/{id}" --> NGINX
-    NGINX --> R --> S
-    S <--> DB
-    S --> P --> L --> G --> I
-    I -.-> M
-    I -.-> A -- HTTPS --> CLAUDE
+    U -->|"HTTP :8080<br/>UI · JSON · archivos"| NGINX
+    NGINX -->|"HTTP :8000<br/>red frontend"| R
+    R -->|"① POST /api/logs, /batch, /import<br/>ECS o archivo crudo"| ING
+    ING -->|"① documentos ECS"| REPO
+    R -->|"② GET /api/logs, /stats<br/>filtros"| REPO
+    R -->|"③ POST /api/logs/analyze<br/>ids o filtros"| AN
+    REPO -->|"③ logs a analizar"| AN
+    AN -->|"③ patrones + esquema<br/>HTTPS"| LLM
+    LLM -->|"③ AnalysisResult (JSON)"| AN
+    AN -->|"③ análisis<br/>pending → completed / failed"| DB
+    REPO <-->|"SQL · psycopg 3<br/>red backend (internal)"| DB
+
+    %% Explicit colors (light fill, dark text) so it reads the same in light and dark themes.
+    classDef user fill:#ffffff,stroke:#475569,color:#0f172a
+    classDef proxy fill:#eef2ff,stroke:#4f46e5,color:#1e1b4b
+    classDef layer fill:#f8fafc,stroke:#64748b,color:#0f172a
+    classDef store fill:#ecfdf5,stroke:#059669,color:#064e3b
+    classDef external fill:#fff7ed,stroke:#ea580c,color:#7c2d12
+    class U user
+    class NGINX proxy
+    class R,ING,REPO,AN layer
+    class DB store
+    class LLM external
+    style compose fill:none,stroke:#94a3b8,stroke-dasharray:6 4,color:#64748b
+    style app fill:none,stroke:#6366f1,color:#6366f1
+    %% Flows: 0-1 and 10 shared, 2-3 ingestion, 4 query, 5-9 analysis.
+    linkStyle 0,1,10 stroke:#64748b,stroke-width:1.5px
+    linkStyle 2,3 stroke:#059669,stroke-width:2.5px
+    linkStyle 4 stroke:#2563eb,stroke-width:2.5px
+    linkStyle 5,6,7,8,9 stroke:#ea580c,stroke-width:2.5px
 ```
 
-Redes de Docker: `frontend` (nginx y app) y `backend` (app y db, marcada `internal`). La base de datos no queda expuesta fuera de Compose; el único puerto publicado es el de Nginx.
+### Componentes y comunicación
+
+| Componente | Qué hace | Se comunica con |
+|---|---|---|
+| **Usuario** | Usa la UI web en el navegador, o la API directamente con `curl` o un script. | Nginx, por HTTP en el puerto 8080. Es la única entrada al sistema. |
+| **Nginx** | Sirve la UI compilada (React) en `/`. Reenvía `/api`, `/docs` y `/openapi.json` a la API. Limita el tamaño de los requests (5 MB) y la tasa de requests a la API, y le da más tiempo a `/api/logs/analyze` (90 s). | La API, por HTTP en el puerto 8000, en la red `frontend`. |
+| **API (FastAPI)** | Valida cada request con Pydantic y la resuelve con sus capas internas: ingesta, repositorio y análisis. Responde JSON con un formato de error único. | PostgreSQL, por SQL con psycopg 3 async, en la red `backend`. El proveedor de LLM, por HTTPS saliente. |
+| **PostgreSQL 16** | Guarda los logs (`log_entries`) y los análisis (`analyses` y `analysis_logs`). | Solo la API. Está en la red `backend`, marcada `internal`, sin puerto publicado ni salida a internet. |
+| **Proveedor de LLM** | Recibe los patrones ya agrupados y devuelve el análisis como JSON validado contra `AnalysisResult`. | La API, por HTTPS, con timeout y un reintento. Con `LLM_PROVIDER=mock`, el modelo corre dentro de la API y no sale nada a la red. |
+
+### Flujo de datos
+
+| Flujo | Recorrido |
+|---|---|
+| **① Ingesta** | El usuario envía un documento ECS (`POST /api/logs`), un lote (`/batch`) o un archivo crudo de texto, JSON o CSV (`/import`). La ingesta parsea el archivo, lo normaliza a ECS y valida cada registro por separado. El repositorio inserta los válidos en `log_entries` con `ON CONFLICT DO NOTHING`, así los `event.id` repetidos no se duplican. La API responde con los ids guardados y los errores de cada registro. |
+| **② Consulta** | El usuario pide `GET /api/logs` (listado paginado) o `/api/logs/stats` (conteos por servicio, nivel, host o período) con filtros ECS. El repositorio traduce los filtros a SQL sobre los índices de `log_entries` y la API devuelve documentos ECS o buckets agregados. |
+| **③ Análisis** | El usuario pide `POST /api/logs/analyze` con ids o con filtros. La API carga esos logs, los agrupa en patrones con estadísticas (sin LLM) y guarda el análisis como `pending`. Después envía al LLM los patrones y el esquema `AnalysisResult`. La respuesta se valida, y el análisis queda `completed` con resumen, categorías y sugerencias, o `failed` con el código de error. El detalle paso a paso está en el diagrama de secuencia de abajo. |
+
+Redes de Docker: `frontend` (nginx y app) y `backend` (app y db, marcada `internal`). La base de datos no queda expuesta fuera de Compose; el único puerto publicado es el de Nginx. La app también está en `frontend` porque necesita salida a internet para llegar al proveedor de LLM.
 
 ### Flujo de un análisis
 
 ```mermaid
 sequenceDiagram
-    participant C as Cliente
-    participant API as FastAPI
+    autonumber
+    actor C as Cliente
+    participant API as API
     participant DB as PostgreSQL
-    participant AN as LogAnalyzer
-    participant AG as Agente Pydantic AI
-    participant LLM as Model
+    participant AN as Analizador
+    participant LLM as LLM
 
-    C->>API: POST /api/logs/analyze {log_ids | filters}
-    API->>API: valida (exactamente una fuente, límites)
-    API->>DB: SELECT logs (por ids o filtros, más recientes primero)
-    alt ids inexistentes / sin coincidencias
-        API-->>C: 404 LOGS_NOT_FOUND / 422 NO_LOGS_MATCHED
+    C->>API: POST /api/logs/analyze (log_ids o filtros)
+
+    rect rgba(79, 70, 229, 0.08)
+    Note over API,DB: Selección de logs
+    API->>DB: busca los logs (por ids, o los más recientes que cumplen los filtros)
+    alt no hay logs
+        API-->>C: 404 LOGS_NOT_FOUND o 422 NO_LOGS_MATCHED
     end
-    API->>AN: prepare(logs)
-    AN->>AN: agrupa en patrones (plantillas) + estadísticas
-    API->>DB: INSERT analysis (status=pending) + analysis_logs
-    API->>AN: run(prepared) con deadline
-    AN->>AG: agent.run(prompt, model, deps, timeout)
-    AG->>LLM: instrucciones + prompt + esquema de AnalysisResult (tool de salida)
-    LLM-->>AG: tool call con el JSON
-    opt no cumple el esquema
-        AG->>LLM: errores de validación (reintento, LLM_OUTPUT_RETRIES)
-        LLM-->>AG: tool call corregido
     end
+
+    rect rgba(5, 150, 105, 0.08)
+    Note over API,AN: Preparación, sin LLM
+    API->>AN: agrupa en patrones y calcula estadísticas
+    API->>DB: guarda el análisis con status=pending
+    end
+
+    rect rgba(234, 88, 12, 0.08)
+    Note over AN,LLM: Llamada al modelo, con deadline
+    AN->>LLM: instrucciones, patrones y esquema de AnalysisResult
+    LLM-->>AN: JSON por la tool de salida
+    opt el JSON no cumple el esquema
+        AN->>LLM: errores de validación (hasta LLM_OUTPUT_RETRIES)
+        LLM-->>AN: JSON corregido
+    end
+    end
+
     alt respuesta válida
-        AG->>AG: validación Pydantic + output_validator (filtro de ids alucinados)
-        AG-->>AN: AnalysisResult + uso de tokens
-        API->>DB: UPDATE status=completed, summary, categories, suggestions
-        API-->>C: 201 análisis completo
-    else formato inesperado
-        API->>DB: UPDATE status=failed, error_code=LLM_INVALID_RESPONSE, raw_response
-        API-->>C: 502 + analysis_id
-    else demora excesiva
-        AG--xLLM: cancelación por timeout (RunTimedOut)
-        API->>DB: UPDATE status=failed, error_code=LLM_TIMEOUT
-        API-->>C: 504 + analysis_id
+        API->>DB: status=completed, resumen, categorías y sugerencias
+        API-->>C: 201 con el análisis
+    else formato inválido
+        API->>DB: status=failed, LLM_INVALID_RESPONSE y respuesta cruda
+        API-->>C: 502 con analysis_id
+    else se pasó del tiempo
+        API->>DB: status=failed, LLM_TIMEOUT
+        API-->>C: 504 con analysis_id
     end
 ```
 
 ### Componentes
 
-| Componente | Responsabilidad |
-|---|---|
-| `src/frontend/` | Interfaz web (React + Vite + TypeScript). Cliente tipado con los tipos generados desde el OpenAPI; Nginx sirve el build en el mismo origen que la API. |
-| `src/api/routers/` | Endpoints HTTP. Solo traducen HTTP a llamadas de servicio. |
-| `src/api/schemas/` | Toda la validación de entrada y los contratos de salida, por recurso: `logs.py`, `analysis.py` (incluido el contrato que debe cumplir el LLM), `health.py` y tipos compartidos en `common.py`. |
-| `src/api/core/` | Settings (`config.py`), errores de dominio y el formato único de error (`errors.py`), logging JSON (`logging.py`). |
-| `src/api/database/` | Engine y sesión async (`session.py`) y modelos ORM (`tables.py`). |
-| `src/api/domain/ecs.py` | Convenciones ECS: niveles, claves con puntos y anidadas. |
-| `src/api/repositories/logs.py` | Acceso a datos de logs y la consulta de agregación. |
-| `src/api/domain/patterns.py` | Preprocesamiento determinístico: plantillas y estadísticas. |
-| `src/api/services/analysis.py` | Caso de uso de análisis: selecciona logs, llama al analizador y persiste el resultado o el fallo. |
-| `src/api/llm/` | Agente de Pydantic AI (`agent.py`), prompt, `LogAnalyzer` (deadline y mapeo de errores), selección del modelo (`providers.py`) y el mock como `FunctionModel` (`mock.py`). |
-| `db/migrations/` | Migraciones versionadas (Alembic). |
-| `db/seed.py` | Datos de ejemplo con incidentes reales para que el análisis tenga algo que encontrar. |
+Estructura del repositorio. El backend sigue capas: los `routers` reciben HTTP, los `services` coordinan los casos de uso, `repositories` habla con la base y `domain` tiene la lógica pura, que se testea sin base ni red.
+
+```text
+smartlog-analyzer/
+├── src/
+│   ├── api/               # backend: paquete Python `api` (FastAPI)
+│   │   ├── main.py
+│   │   ├── routers/       # endpoints HTTP: traducen HTTP a llamadas de servicio
+│   │   │   ├── logs.py
+│   │   │   ├── analysis.py
+│   │   │   ├── health.py
+│   │   │   └── deps.py
+│   │   ├── schemas/       # validación de entrada y contratos de salida (Pydantic)
+│   │   │   ├── logs.py
+│   │   │   ├── analysis.py
+│   │   │   ├── health.py
+│   │   │   └── common.py
+│   │   ├── services/      # casos de uso
+│   │   │   ├── ingestion.py
+│   │   │   └── analysis.py
+│   │   ├── repositories/  # acceso a datos: filtros, agregaciones, inserts idempotentes
+│   │   │   └── logs.py
+│   │   ├── domain/        # lógica pura, sin I/O
+│   │   │   ├── ecs.py
+│   │   │   ├── patterns.py
+│   │   │   └── raw_logs/  # logs crudos en cualquier esquema → ECS
+│   │   │       ├── files.py
+│   │   │       ├── text.py
+│   │   │       ├── profiles.py
+│   │   │       ├── normalize.py
+│   │   │       └── timestamps.py
+│   │   ├── llm/           # integración con el LLM (Pydantic AI)
+│   │   │   ├── agent.py
+│   │   │   ├── prompt.py
+│   │   │   ├── analyzer.py
+│   │   │   ├── providers.py
+│   │   │   └── mock.py
+│   │   ├── database/      # engine, sesión async y modelos ORM
+│   │   │   ├── session.py
+│   │   │   └── tables.py
+│   │   └── core/          # settings, errores y logging
+│   │       ├── config.py
+│   │       ├── errors.py
+│   │       └── logging.py
+│   └── frontend/          # interfaz web (React + Vite + TypeScript)
+│       ├── src/api/
+│       ├── src/pages/
+│       ├── src/components/
+│       ├── src/lib/
+│       └── vite.config.ts
+├── db/                    # migraciones de Alembic y datos de ejemplo
+│   ├── migrations/versions/
+│   └── seed.py
+├── tests/                 # unitarios e integración contra PostgreSQL
+│   ├── unit/
+│   └── integration/
+├── docker/                # imagen de nginx con la UI y arranque de la API
+│   ├── nginx.Dockerfile
+│   ├── nginx.conf
+│   └── entrypoint.sh
+├── docs/openapi.json
+├── Dockerfile
+├── docker-compose.yml
+└── Makefile
+```
+
+Las dependencias van hacia adentro, nunca al revés:
+- `routers` usa `services` para los casos de uso con varios pasos (ingesta en lote, importación, análisis) y llama a `repositories` directamente para las consultas simples (listado, stats, un log).
+- `services` usa `repositories` y `llm`; `llm` usa `domain` para agrupar los logs en patrones antes de llamar al modelo.
+- `domain` solo usa la biblioteca estándar: no importa nada de HTTP, de la base de datos ni del LLM.
 
 ## 2. Modelo de datos
 
 ```mermaid
 erDiagram
-    log_entries ||--o{ analysis_logs : "incluido en"
+    log_entries ||--o{ analysis_logs : "se incluye en"
     analyses ||--o{ analysis_logs : "analiza"
 
     log_entries {
         bigint id PK
         timestamptz timestamp "@timestamp"
-        text message "message"
-        varchar log_level "log.level (original, tal como llega)"
-        varchar level "nivel normalizado (CHECK critical..debug)"
-        smallint event_severity "event.severity (derivado)"
+        text message
+        varchar log_level "log.level tal como llegó"
+        varchar level "nivel normalizado"
+        smallint event_severity "derivado del nivel"
         varchar service_name "service.name"
-        varchar service_version "service.version"
-        varchar service_environment "service.environment"
         varchar host_name "host.name"
-        varchar log_logger "log.logger"
         varchar trace_id "trace.id"
-        varchar span_id "span.id"
-        varchar transaction_id "transaction.id"
-        varchar error_type "error.type"
-        text error_message "error.message"
-        text error_stack_trace "error.stack_trace"
-        varchar event_id "event.id (único por servicio)"
-        varchar event_dataset "event.dataset"
-        text event_original "event.original"
-        jsonb labels "labels"
-        jsonb tags "tags"
-        varchar ecs_version "ecs.version"
-        jsonb extra "cualquier otro campo ECS o propio"
+        varchar event_id "event.id, único por servicio"
+        text event_original "evento crudo"
+        jsonb labels
+        jsonb tags
+        jsonb extra "otros campos, tal como llegaron"
         timestamptz ingested_at "event.ingested"
     }
     analyses {
         uuid id PK
-        varchar status "pending | completed | failed"
-        jsonb request "ids o filtros usados (reproducible)"
+        varchar status "pending, completed o failed"
+        jsonb request "ids o filtros usados"
         int log_count
-        int pattern_count
         jsonb stats "conteos calculados sin LLM"
         varchar provider
         varchar model
@@ -150,25 +236,24 @@ erDiagram
         jsonb categories
         jsonb suggestions
         varchar error_code
-        text error_message
-        text raw_response "salida cruda del LLM (debug/auditoría)"
-        int duration_ms
+        text raw_response "salida cruda del LLM"
         timestamptz created_at
-        timestamptz completed_at
     }
     analysis_logs {
-        uuid analysis_id PK,FK
-        bigint log_id PK,FK
+        uuid analysis_id PK, FK
+        bigint log_id PK, FK
     }
 ```
 
+El diagrama muestra las columnas principales. `log_entries` tiene además columnas tipadas para `service.version`, `service.environment`, `log.logger`, `span.id`, `transaction.id`, `error.type`, `error.message`, `error.stack_trace`, `event.dataset` y `ecs.version`. `analyses` guarda también `pattern_count`, `error_message`, `duration_ms` y `completed_at`. La definición completa está en [src/api/database/tables.py](src/api/database/tables.py).
+
 Cada columna corresponde a un campo ECS, y la API reconstruye el documento ECS anidado a partir de ellas. Los campos ECS más usados para filtrar y agregar son columnas tipadas; el resto se guarda en `extra` (JSONB) y se devuelve tal como llegó.
 
-Índices de `log_entries`: `(timestamp)`, `(service_name, timestamp)`, `(level, timestamp)` y un índice parcial sobre `trace_id IS NOT NULL`. Cubren los filtros habituales, que siempre llevan una ventana de tiempo.
+Índices de `log_entries`: `(timestamp)`, `(service_name, timestamp)` y `(level, timestamp)` para los filtros habituales, que siempre llevan una ventana de tiempo; uno parcial sobre `trace_id IS NOT NULL`; uno único y parcial sobre `(service_name, event_id)` para que los reintentos no dupliquen logs; y un GIN con `pg_trgm` sobre `message` para la búsqueda de texto (`q`).
 
 Consulta de agregación (`GET /api/logs/stats`): `COUNT`, `MIN` y `MAX` agrupados por cualquier combinación de `service.name`, nivel normalizado, `service.environment`, `host.name` y periodo (`date_trunc('hour'|'day')`), con los mismos filtros que el listado.
 
-Migraciones: `0001` crea el esquema inicial y `0002` lo lleva a ECS convirtiendo los datos existentes (renombra columnas, guarda el nivel original y deriva el normalizado y `event.severity`). Las dos tienen `downgrade`, y un test verifica la conversión de datos en ambos sentidos.
+Migraciones: `0001` crea el esquema inicial; `0002` lo lleva a ECS convirtiendo los datos existentes (renombra columnas, guarda el nivel original y deriva el normalizado y `event.severity`); `0003` agrega `event_id` y los índices de deduplicación y de búsqueda. Todas tienen `downgrade`, y los tests verifican la conversión de datos de `0002` y la ida y vuelta de `0003`.
 
 ## 3. Decisiones técnicas
 
