@@ -1,0 +1,2271 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SmartLog Analyzer",
+    "description": "Ingest logs from microservices, query them and get AI-generated insights.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Service health (checks the database)",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/logs": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Ingest an ECS log document",
+        "operationId": "ingest_log_api_logs_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogRead"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Retry: a log with this event.id was already stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "List logs (as ECS documents) with filters",
+        "operationId": "list_logs_api_logs_get",
+        "parameters": [
+          {
+            "name": "service.name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "Service name: lowercase letters, digits, '.', '_' or '-'.",
+                    "examples": [
+                      "payments-api"
+                    ]
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Service.Name"
+            }
+          },
+          {
+            "name": "log.level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogLevel"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Matches the normalized level, so `warn` also matches WARN/warning/W. Values: critical, error, warn, info, debug (any accepted spelling).",
+              "title": "Log.Level"
+            },
+            "description": "Matches the normalized level, so `warn` also matches WARN/warning/W. Values: critical, error, warn, info, debug (any accepted spelling)."
+          },
+          {
+            "name": "service.environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Service.Environment"
+            }
+          },
+          {
+            "name": "host.name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Host.Name"
+            }
+          },
+          {
+            "name": "event.dataset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Event.Dataset"
+            }
+          },
+          {
+            "name": "trace.id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9-]{1,64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Trace.Id"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "@timestamp >= from",
+              "title": "From"
+            },
+            "description": "@timestamp >= from"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "@timestamp <= to",
+              "title": "To"
+            },
+            "description": "@timestamp <= to"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Text search in message",
+              "title": "Q"
+            },
+            "description": "Text search in message"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/logs/batch": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Ingest up to 1000 ECS log documents in one request",
+        "description": "Each log is validated on its own: valid logs are stored and invalid ones are reported in `errors` with their position, so one bad log does not reject the rest. Logs whose `event.id` is already stored for the same `service.name` are counted in `duplicates` and not stored again. If no log is valid the response is 422.",
+        "operationId": "ingest_batch_api_logs_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogBatchCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogBatchResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid body, or no valid log in the batch"
+          }
+        }
+      }
+    },
+    "/api/logs/import": {
+      "post": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Import raw logs: plain text, JSON or CSV",
+        "description": "The body is the file content. The format comes from `format`, or else from the Content-Type (`text/plain`, `application/json` or `application/x-ndjson`, `text/csv`).\n\nRecords do not need to be ECS: they are parsed and mapped to ECS.\n\n* **text**: one record per line. Recognizes NDJSON, syslog (RFC 5424 and 3164), Apache/nginx access logs, klog, Kubernetes CRI, logfmt, and `<timestamp> <LEVEL> <message>` (Python logging, logback, log4j: also the logger and thread). Indented and `Caused by:` lines are added to the previous record as `error.stack_trace`. The raw line is kept in `event.original`.\n* **json**: an array, `{\"logs\": [...]}`, one object, or NDJSON. Known schemas are translated: OpenTelemetry (OTLP/JSON), GELF, Serilog CLEF, Google Cloud Logging, AWS CloudWatch, Docker json-file.\n* **csv**: header row with any column names; `,` `;` tab or `|`.\n\nAny other schema is normalized: nested objects are flattened, names in any style (`traceId`, `trace_id`) are mapped to ECS, epoch and common date formats are read, a plain value where ECS has an object (`\"error\": \"...\"`) is moved to its main field, invalid service names and ids are fixed or moved to labels. What could not be kept as is is marked with a tag (`_message_missing`, `_timestamp_unparsed`, `_truncated`, `_fields_dropped`, `_level_missing`) or a label (`original_service_name`, `original_timestamp`). `service.name` and `log.level` fill in records that lack them. Like the batch endpoint, valid records are stored and invalid ones are reported with their line. Up to 10000 records and 5 MB; the file must be UTF-8.",
+        "operationId": "import_logs_api_logs_import_post",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "text",
+                    "json",
+                    "csv"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Overrides the Content-Type.",
+              "title": "Format"
+            },
+            "description": "Overrides the Content-Type."
+          },
+          {
+            "name": "service.name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "For records without one.",
+              "title": "Service.Name"
+            },
+            "description": "For records without one."
+          },
+          {
+            "name": "log.level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "For records without one (default info).",
+              "title": "Log.Level"
+            },
+            "description": "For records without one (default info)."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogImportResult"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "File too large"
+          },
+          "422": {
+            "description": "Unreadable file, too many records, or no valid record"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "2026-11-16T10:00:00Z ERROR Payment failed"
+            },
+            "text/csv": {
+              "schema": {
+                "type": "string"
+              },
+              "example": "@timestamp,log.level,service.name,message\n2026-11-16T10:00:00Z,ERROR,payments,boom"
+            },
+            "application/json": {
+              "schema": {}
+            },
+            "application/x-ndjson": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/logs/stats": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Aggregated counts by service, level and/or time bucket",
+        "operationId": "log_stats_api_logs_stats_get",
+        "parameters": [
+          {
+            "name": "service.name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "description": "Service name: lowercase letters, digits, '.', '_' or '-'.",
+                    "examples": [
+                      "payments-api"
+                    ]
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Service.Name"
+            }
+          },
+          {
+            "name": "log.level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogLevel"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Matches the normalized level, so `warn` also matches WARN/warning/W. Values: critical, error, warn, info, debug (any accepted spelling).",
+              "title": "Log.Level"
+            },
+            "description": "Matches the normalized level, so `warn` also matches WARN/warning/W. Values: critical, error, warn, info, debug (any accepted spelling)."
+          },
+          {
+            "name": "service.environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Service.Environment"
+            }
+          },
+          {
+            "name": "host.name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Host.Name"
+            }
+          },
+          {
+            "name": "event.dataset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Event.Dataset"
+            }
+          },
+          {
+            "name": "trace.id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9-]{1,64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Trace.Id"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "@timestamp >= from",
+              "title": "From"
+            },
+            "description": "@timestamp >= from"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "@timestamp <= to",
+              "title": "To"
+            },
+            "description": "@timestamp <= to"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Text search in message",
+              "title": "Q"
+            },
+            "description": "Text search in message"
+          },
+          {
+            "name": "group_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "service.name",
+                  "log.level",
+                  "service.environment",
+                  "host.name",
+                  "hour",
+                  "day"
+                ],
+                "type": "string"
+              },
+              "minItems": 1,
+              "default": [
+                "service.name",
+                "log.level"
+              ],
+              "title": "Group By"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        }
+      }
+    },
+    "/api/logs/{log_id}": {
+      "get": {
+        "tags": [
+          "logs"
+        ],
+        "summary": "Get one log (as an ECS document) by id",
+        "operationId": "get_log_api_logs__log_id__get",
+        "parameters": [
+          {
+            "name": "log_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Log Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Log not found"
+          },
+          "422": {
+            "description": "Invalid id"
+          }
+        }
+      }
+    },
+    "/api/logs/analyze": {
+      "post": {
+        "tags": [
+          "analysis"
+        ],
+        "summary": "Send a set of logs to the LLM for analysis",
+        "description": "Select logs by `log_ids` (max 500) or by `filters` (most recent first, up to `limit`). The logs are grouped into patterns, sent to the configured LLM and the result is persisted. On LLM failure the analysis is still persisted with status `failed` and its id is returned in the error body.",
+        "operationId": "analyze_logs_api_logs_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Some log ids do not exist"
+          },
+          "422": {
+            "description": "Validation error or no logs matched"
+          },
+          "502": {
+            "description": "LLM returned an invalid response or failed"
+          },
+          "504": {
+            "description": "LLM timed out"
+          }
+        }
+      }
+    },
+    "/api/analysis/{analysis_id}": {
+      "get": {
+        "tags": [
+          "analysis"
+        ],
+        "summary": "Get the result of an analysis",
+        "operationId": "get_analysis_api_analysis__analysis_id__get",
+        "parameters": [
+          {
+            "name": "analysis_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Analysis Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Analysis not found"
+          },
+          "422": {
+            "description": "Invalid id"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalysisErrorInfo": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "AnalysisErrorInfo"
+      },
+      "AnalysisFilters": {
+        "properties": {
+          "service.name": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "minLength": 1,
+                  "description": "Service name: lowercase letters, digits, '.', '_' or '-'.",
+                  "examples": [
+                    "payments-api"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service.Name"
+          },
+          "log.level": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LogLevel"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log.Level",
+            "description": "Matches the normalized level, so `warn` also matches WARN/warning/W. Values: critical, error, warn, info, debug (any accepted spelling)."
+          },
+          "service.environment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service.Environment"
+          },
+          "host.name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host.Name"
+          },
+          "event.dataset": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event.Dataset"
+          },
+          "trace.id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9-]{1,64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace.Id"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From",
+            "description": "@timestamp >= from"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To",
+            "description": "@timestamp <= to"
+          },
+          "q": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q",
+            "description": "Text search in message"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Max logs to include (most recent first)",
+            "default": 200
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AnalysisFilters"
+      },
+      "AnalysisRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "completed",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "request": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Request"
+          },
+          "log_count": {
+            "type": "integer",
+            "title": "Log Count"
+          },
+          "pattern_count": {
+            "type": "integer",
+            "title": "Pattern Count"
+          },
+          "stats": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Stats"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Category"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categories"
+          },
+          "suggestions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Suggestion"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggestions"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisErrorInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "created_at",
+          "completed_at",
+          "request",
+          "log_count",
+          "pattern_count",
+          "stats",
+          "provider",
+          "model",
+          "summary",
+          "categories",
+          "suggestions",
+          "error",
+          "duration_ms"
+        ],
+        "title": "AnalysisRead"
+      },
+      "AnalyzeRequest": {
+        "properties": {
+          "log_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array",
+                "maxItems": 500,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log Ids"
+          },
+          "filters": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisFilters"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AnalyzeRequest",
+        "description": "Either an explicit list of log ids or a filter set, never both."
+      },
+      "Category": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "description": "Short label, e.g. \"Database connectivity\"."
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "title": "Severity"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Description",
+            "description": "What is going wrong, based only on the data."
+          },
+          "occurrences": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Occurrences",
+            "description": "Sum of the pattern counts in this category, as given."
+          },
+          "services": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Services",
+            "description": "service.name values affected."
+          },
+          "example_log_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Example Log Ids",
+            "description": "Ids taken from the patterns' sample_log_ids."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "severity",
+          "description",
+          "occurrences"
+        ],
+        "title": "Category",
+        "description": "A group of related problems found in the logs."
+      },
+      "EcsError": {
+        "properties": {
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "stack_trace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stack Trace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "EcsError"
+      },
+      "EcsEvent": {
+        "properties": {
+          "severity": {
+            "type": "integer",
+            "title": "Severity",
+            "description": "Derived by SmartLog: 2 critical, 3 error, 4 warn, 5-6 info, 7 debug"
+          },
+          "ingested": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ingested",
+            "description": "When SmartLog received the event"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset"
+          },
+          "original": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "severity",
+          "ingested"
+        ],
+        "title": "EcsEvent"
+      },
+      "EcsHost": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "EcsHost"
+      },
+      "EcsId": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "EcsId"
+      },
+      "EcsLog": {
+        "properties": {
+          "level": {
+            "type": "string",
+            "title": "Level",
+            "description": "Original level as sent by the source"
+          },
+          "logger": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logger"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "level"
+        ],
+        "title": "EcsLog"
+      },
+      "EcsMeta": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "EcsMeta"
+      },
+      "EcsService": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "environment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Environment"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "EcsService"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "unavailable"
+            ],
+            "title": "Database"
+          },
+          "llm_provider": {
+            "type": "string",
+            "title": "Llm Provider"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "version",
+          "database",
+          "llm_provider"
+        ],
+        "title": "HealthResponse"
+      },
+      "LogBatchCreate": {
+        "properties": {
+          "logs": {
+            "items": {
+              "$ref": "#/components/schemas/LogCreate"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Logs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "logs"
+        ],
+        "title": "LogBatchCreate"
+      },
+      "LogBatchItemError": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index",
+            "description": "Position of the rejected log in the request (0-based)."
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line",
+            "description": "Imports only: line of the file where the record starts (1-based)."
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationErrorDetail"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "errors"
+        ],
+        "title": "LogBatchItemError"
+      },
+      "LogBatchResult": {
+        "properties": {
+          "ingested": {
+            "type": "integer",
+            "title": "Ingested",
+            "description": "Logs stored by this request."
+          },
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Ids",
+            "description": "Ids of the stored logs, in request order."
+          },
+          "duplicates": {
+            "type": "integer",
+            "title": "Duplicates",
+            "description": "Logs skipped because their event.id was already stored (retries).",
+            "default": 0
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "description": "Logs rejected by validation; see `errors`.",
+            "default": 0
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/LogBatchItemError"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ingested",
+          "ids"
+        ],
+        "title": "LogBatchResult"
+      },
+      "LogCreate": {
+        "properties": {
+          "@timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "@Timestamp",
+            "description": "When the event happened. Defaults to ingestion time. Naive = UTC."
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "log.level": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Log.Level",
+            "description": "Original level as emitted by the source; stored as sent. Unknown spellings are accepted, counted as info and tagged `_level_unrecognized`.",
+            "examples": [
+              "ERROR",
+              "warn",
+              "Informational"
+            ]
+          },
+          "log.logger": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log.Logger"
+          },
+          "service.name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Service.Name",
+            "description": "Service name: lowercase letters, digits, '.', '_' or '-'.",
+            "examples": [
+              "payments-api"
+            ]
+          },
+          "service.version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service.Version"
+          },
+          "service.environment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service.Environment"
+          },
+          "host.name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host.Name"
+          },
+          "trace.id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9-]{1,64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace.Id"
+          },
+          "span.id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9-]{1,64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span.Id"
+          },
+          "transaction.id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9-]{1,64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction.Id"
+          },
+          "error.type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error.Type"
+          },
+          "error.message": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error.Message"
+          },
+          "error.stack_trace": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32768
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error.Stack Trace"
+          },
+          "event.id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event.Id",
+            "description": "Unique id of the event at the source. Makes retries idempotent per service.name."
+          },
+          "event.dataset": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]{1,100}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event.Dataset",
+            "examples": [
+              "payments-api.app"
+            ]
+          },
+          "event.original": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32768
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event.Original"
+          },
+          "labels": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "type": "object",
+            "maxProperties": 50,
+            "title": "Labels"
+          },
+          "tags": {
+            "items": {
+              "type": "string",
+              "maxLength": 100,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Tags"
+          },
+          "ecs.version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d+\\.\\d+"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ecs.Version"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "message",
+          "log.level",
+          "service.name"
+        ],
+        "title": "LogCreate",
+        "description": "An ECS log document.\n\nAccepts nested objects (`{\"log\": {\"level\": \"error\"}}`), dotted keys\n(`{\"log.level\": \"error\"}`) or a mix. Required: `message`, `log.level`, `service.name`.\nAny other ECS or custom field is accepted and returned as sent.\n\nSend `event.id` to make retries safe: a log whose `event.id` is already stored for the\nsame `service.name` is not stored again.",
+        "examples": [
+          {
+            "@timestamp": "2026-11-16T13:00:00Z",
+            "ecs": {
+              "version": "9.4.0"
+            },
+            "host": {
+              "name": "payments-api-2"
+            },
+            "labels": {
+              "team": "payments"
+            },
+            "log.level": "ERROR",
+            "message": "Could not acquire database connection after 5000ms",
+            "service": {
+              "environment": "production",
+              "name": "payments-api",
+              "version": "1.4.2"
+            },
+            "trace": {
+              "id": "4bf92f3577b34da6a3ce929d0e0e4736"
+            }
+          }
+        ]
+      },
+      "LogImportResult": {
+        "properties": {
+          "ingested": {
+            "type": "integer",
+            "title": "Ingested",
+            "description": "Logs stored by this request."
+          },
+          "ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Ids",
+            "description": "Ids of the stored logs, in request order."
+          },
+          "duplicates": {
+            "type": "integer",
+            "title": "Duplicates",
+            "description": "Logs skipped because their event.id was already stored (retries).",
+            "default": 0
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "description": "Logs rejected by validation; see `errors`.",
+            "default": 0
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/LogBatchItemError"
+            },
+            "type": "array",
+            "title": "Errors"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "text",
+              "json",
+              "csv"
+            ],
+            "title": "Format",
+            "description": "How the input was parsed."
+          },
+          "records": {
+            "type": "integer",
+            "title": "Records",
+            "description": "Records found in the input (blank lines and empty rows excluded)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ingested",
+          "ids",
+          "format",
+          "records"
+        ],
+        "title": "LogImportResult"
+      },
+      "LogLevel": {
+        "type": "string",
+        "enum": [
+          "critical",
+          "error",
+          "warn",
+          "info",
+          "debug"
+        ],
+        "title": "LogLevel",
+        "description": "Normalized level derived from the original ECS `log.level` (see api.domain.ecs)."
+      },
+      "LogPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LogRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "page"
+        ],
+        "title": "LogPage"
+      },
+      "LogRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "@timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "@Timestamp"
+          },
+          "log": {
+            "$ref": "#/components/schemas/EcsLog"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "service": {
+            "$ref": "#/components/schemas/EcsService"
+          },
+          "event": {
+            "$ref": "#/components/schemas/EcsEvent"
+          },
+          "ecs": {
+            "$ref": "#/components/schemas/EcsMeta"
+          },
+          "host": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EcsHost"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EcsId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EcsId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transaction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EcsId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EcsError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "labels": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labels"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "@timestamp",
+          "log",
+          "message",
+          "service",
+          "event",
+          "ecs"
+        ],
+        "title": "LogRead",
+        "description": "A stored log as an ECS document. `id` is SmartLog's resource id, not an ECS field."
+      },
+      "PageMeta": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "has_more"
+        ],
+        "title": "PageMeta"
+      },
+      "StatsBucket": {
+        "properties": {
+          "service.name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service.Name"
+          },
+          "log.level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LogLevel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Normalized level"
+          },
+          "service.environment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service.Environment"
+          },
+          "host.name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host.Name"
+          },
+          "period": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "first_seen": {
+            "type": "string",
+            "format": "date-time",
+            "title": "First Seen"
+          },
+          "last_seen": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Seen"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count",
+          "first_seen",
+          "last_seen"
+        ],
+        "title": "StatsBucket"
+      },
+      "StatsResponse": {
+        "properties": {
+          "group_by": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "service.name",
+                "log.level",
+                "service.environment",
+                "host.name",
+                "hour",
+                "day"
+              ]
+            },
+            "type": "array",
+            "title": "Group By"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/StatsBucket"
+            },
+            "type": "array",
+            "title": "Buckets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "group_by",
+          "total",
+          "buckets"
+        ],
+        "title": "StatsResponse"
+      },
+      "Suggestion": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Description"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Priority"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "Name of the category it addresses, if any."
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "description",
+          "priority"
+        ],
+        "title": "Suggestion",
+        "description": "A concrete, actionable next step for the team."
+      },
+      "ValidationErrorDetail": {
+        "properties": {
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "location",
+          "message",
+          "type"
+        ],
+        "title": "ValidationErrorDetail",
+        "description": "Same shape as the `details` of a VALIDATION_ERROR response."
+      }
+    }
+  }
+}
