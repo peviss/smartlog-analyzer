@@ -5,22 +5,40 @@ export interface BarDatum {
   value: number;
   /** CSS class suffix for the bar color, e.g. "level-error". */
   tone?: string;
+  /** Extra text after the value, e.g. "de 400". */
+  detail?: string;
+}
+
+interface BarListProps {
+  data: BarDatum[];
+  ariaLabel: string;
+  /** Makes each label a link to its details. */
+  onSelect?: (datum: BarDatum) => void;
 }
 
 /** Ranked horizontal bars. Values are printed, so the chart is readable without hovering. */
-export function BarList({ data, ariaLabel }: { data: BarDatum[]; ariaLabel: string }) {
+export function BarList({ data, ariaLabel, onSelect }: BarListProps) {
   const max = Math.max(1, ...data.map((d) => d.value));
   return (
     <ul className="bar-list" aria-label={ariaLabel}>
       {data.map((d) => (
         <li key={d.label}>
-          <span className="bar-label" title={d.label}>
-            {d.label}
-          </span>
+          {onSelect ? (
+            <button type="button" className="bar-label link-button" title={`Ver ${d.label}`} onClick={() => onSelect(d)}>
+              {d.label}
+            </button>
+          ) : (
+            <span className="bar-label" title={d.label}>
+              {d.label}
+            </span>
+          )}
           <span className="bar-track">
             <span className={`bar-fill ${d.tone ?? ""}`} style={{ width: `${(d.value / max) * 100}%` }} />
           </span>
-          <span className="bar-value">{formatNumber(d.value)}</span>
+          <span className="bar-value">
+            {formatNumber(d.value)}
+            {d.detail && <span className="muted"> {d.detail}</span>}
+          </span>
         </li>
       ))}
     </ul>
