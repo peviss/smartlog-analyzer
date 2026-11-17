@@ -10,6 +10,7 @@ Los logs siguen el **Elastic Common Schema (ECS 9.4)**: se ingestan y se devuelv
 
 - **Stack:** Python 3.13, FastAPI, PostgreSQL 16, SQLAlchemy 2 (async) + Alembic, Nginx y Docker Compose.
 - **IA:** [Pydantic AI](https://ai.pydantic.dev) con salida estructurada validada por Pydantic (`AnalysisResult`). Un mock realista (`FunctionModel`) funciona sin API key y sin costo; la integración real con Anthropic Claude se activa con una variable de entorno.
+- **Sitio del producto:** [peviss.github.io/smartlog-analyzer](https://peviss.github.io/smartlog-analyzer/) (código en [landing/](landing/)).
 - **Decisiones técnicas y diagramas:** ver [ARCHITECTURE.md](ARCHITECTURE.md).
 
 **Contenido:** [Cómo levantar](#cómo-levantar) · [Cómo testear](#cómo-testear) · [Uso de IA](#uso-de-ia) · [API](#api) · [Contenedores](#contenedores-puertos-red-y-variables) · [Estructura](#estructura) · [Pendientes](#pendientes)
