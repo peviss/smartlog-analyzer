@@ -14,8 +14,8 @@
   --shadow: 0 1px 2px rgb(16 24 40 / 0.06);
 
   /* Levels (also used by analysis severity) */
-  --critical: #b42318;
-  --critical-soft: #fee4e2;
+  --critical: #c11574;
+  --critical-soft: #fce7f6;
   --error: #d92d20;
   --error-soft: #fef3f2;
   --warn: #b54708;
@@ -54,8 +54,8 @@
     --primary-soft: #1c2741;
     --focus: #8fb3ff;
     --shadow: none;
-    --critical: #ff8a80;
-    --critical-soft: #3d1715;
+    --critical: #f670c7;
+    --critical-soft: #3a1030;
     --error: #ff6b5e;
     --error-soft: #34181a;
     --warn: #fdb022;
