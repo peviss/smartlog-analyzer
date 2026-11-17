@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="Logo de SmartLog Analyzer" width="96" height="96">
+</p>
+
 # SmartLog Analyzer
 
 Herramienta interna para centralizar los logs de varios microservicios, consultarlos y obtener con IA un resumen, categorías de problemas y sugerencias de acción.
