@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 /** Hash routes, so the static build works behind any server without rewrites. */
 export type Route =
+  | { page: "home" }
   | { page: "logs" }
   | { page: "stats" }
   | { page: "analysis"; id?: string }
@@ -10,6 +11,8 @@ export type Route =
 export function parseHash(hash: string): Route {
   const [page, id] = hash.replace(/^#\/?/, "").split("/");
   switch (page) {
+    case "logs":
+      return { page: "logs" };
     case "stats":
       return { page: "stats" };
     case "ingest":
@@ -17,7 +20,7 @@ export function parseHash(hash: string): Route {
     case "analysis":
       return id ? { page: "analysis", id: decodeURIComponent(id) } : { page: "analysis" };
     default:
-      return { page: "logs" };
+      return { page: "home" };
   }
 }
 

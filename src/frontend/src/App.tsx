@@ -5,11 +5,13 @@ import { EMPTY_FILTERS, type Filters } from "./lib/filters";
 import { navigate, type Route, routeToHash, useRoute } from "./lib/router";
 import { useApi } from "./lib/useApi";
 import { type AnalysisDraft, AnalysisPage } from "./pages/AnalysisPage";
+import { HomePage } from "./pages/HomePage";
 import { IngestPage } from "./pages/IngestPage";
 import { LogsPage } from "./pages/LogsPage";
 import { StatsPage } from "./pages/StatsPage";
 
 const NAV: { route: Route; label: string }[] = [
+  { route: { page: "home" }, label: "Inicio" },
   { route: { page: "logs" }, label: "Logs" },
   { route: { page: "stats" }, label: "Estadísticas" },
   { route: { page: "analysis" }, label: "Análisis" },
@@ -49,6 +51,12 @@ export function App() {
     navigate({ page: "analysis" });
   };
 
+  // Links from the home page carry their filters to the detail page.
+  const openWith = (page: "logs" | "stats", next: Filters) => {
+    setFilters(next);
+    navigate({ page });
+  };
+
   return (
     <div className="app">
       <a className="skip-link" href="#main">
@@ -56,7 +64,7 @@ export function App() {
       </a>
       <header className="topbar">
         <div className="topbar-inner">
-          <a className="brand" href="#/logs">
+          <a className="brand" href="#/home">
             <svg viewBox="0 0 32 32" aria-hidden="true">
               <rect width="32" height="32" rx="7" />
               <path d="M8 10h16M8 16h11M8 22h14" />
@@ -79,6 +87,17 @@ export function App() {
       </header>
 
       <main id="main" className="content">
+        {route.page === "home" && (
+          <HomePage
+            onOpenLogs={(next) => openWith("logs", next)}
+            onOpenStats={(next) => openWith("stats", next)}
+            onAnalyzePeriod={(next) => {
+              setFilters(next);
+              startAnalysis({ mode: "filters" });
+            }}
+            onAnalyzeIds={(ids) => startAnalysis({ mode: "ids", ids })}
+          />
+        )}
         {route.page === "logs" && (
           <LogsPage
             filters={filters}
