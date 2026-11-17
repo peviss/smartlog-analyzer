@@ -64,7 +64,7 @@ make api-dev         # API en :8000 (en otra terminal)
 make ui-dev          # UI en http://localhost:5173; Vite reenvía /api a :8000
 ```
 
-Tiene cuatro vistas: **Logs** (filtros ECS, detalle del documento, selección para analizar), **Estadísticas** (agregaciones por servicio, nivel, entorno, host y hora o día), **Análisis** (correr un análisis por filtros o por ids y ver categorías, sugerencias y logs de ejemplo) e **Ingesta** (un log rápido o JSON, individual o en lote). Los filtros se comparten entre vistas: lo que filtrás en Logs es lo que se analiza.
+Tiene cinco vistas: **Inicio** (resumen del período elegido, 24 h, 7 o 30 días: logs, errores y tasa de error comparados con el período anterior, errores por hora, servicios con más errores, últimos errores y últimos análisis; cada dato abre su detalle con los filtros aplicados), **Logs** (filtros ECS, detalle del documento, selección para analizar), **Estadísticas** (agregaciones por servicio, nivel, entorno, host y hora o día), **Análisis** (correr un análisis por filtros o por ids y ver categorías, sugerencias y logs de ejemplo) e **Ingesta** (un log rápido o JSON, individual o en lote). Los filtros se comparten entre vistas: lo que filtrás en Logs es lo que se analiza.
 
 El cliente HTTP está tipado con los tipos generados desde [docs/openapi.json](docs/openapi.json). Si cambia la API, `make openapi` regenera el OpenAPI y los tipos de la UI, y `npm run typecheck` marca lo que haya que ajustar. En Docker, la imagen de Nginx compila la UI ([docker/nginx.Dockerfile](docker/nginx.Dockerfile)) y la sirve en `/`, en el mismo origen que la API, así que no hace falta CORS.
 
@@ -377,7 +377,7 @@ src/api/            código fuente (paquete `api`)
   llm/              agente Pydantic AI, prompt, analyzer, proveedores y mock
 src/frontend/       interfaz web (React + Vite + TypeScript)
   src/api/          cliente tipado; schema.d.ts se genera desde docs/openapi.json
-  src/pages/        Logs, Estadísticas, Análisis, Ingesta
+  src/pages/        Inicio, Logs, Estadísticas, Análisis, Ingesta
   src/components/   filtros, gráficos, detalle de log, vista de análisis
 db/
   migrations/       migraciones Alembic (0001 esquema inicial, 0002 campos ECS)
