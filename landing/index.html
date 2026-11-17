@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>SmartLog Analyzer · Tus logs, entendidos</title>
+    <meta
+      name="description"
+      content="SmartLog Analyzer centraliza los logs de tus microservicios en Elastic Common Schema, los agrupa en patrones y usa un LLM para explicar qué está fallando y qué hacer. Open source y self-hosted."
+    />
+    <meta property="og:title" content="SmartLog Analyzer · Tus logs, entendidos" />
+    <meta
+      property="og:description"
+      content="Ingesta en cualquier formato, análisis con IA y un resumen claro de lo que está fallando. Open source y self-hosted."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://peviss.github.io/smartlog-analyzer/" />
+    <meta property="og:image" content="https://peviss.github.io/smartlog-analyzer/assets/home.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://peviss.github.io/smartlog-analyzer/" />
+    <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Saltar al contenido</a>
+
+    <header class="nav">
+      <div class="container nav-inner">
+        <a class="brand" href="#top" aria-label="SmartLog Analyzer, inicio">
+          <img src="assets/logo.svg" alt="" width="28" height="28" />
+          <span>SmartLog Analyzer</span>
+        </a>
+        <nav aria-label="Secciones">
+          <a href="#funciones">Funciones</a>
+          <a href="#como-funciona">Cómo funciona</a>
+          <a href="#empezar">Empezar</a>
+        </nav>
+        <a class="button button-ghost nav-github" href="https://github.com/peviss/smartlog-analyzer">
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+            <path
+              fill="currentColor"
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+            />
+          </svg>
+          GitHub
+        </a>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- Hero -->
+      <section class="hero" id="top">
+        <div class="container hero-inner">
+          <p class="eyebrow">Open source · Self-hosted · Elastic Common Schema</p>
+          <h1>Tus logs, <span class="accent">entendidos</span>.</h1>
+          <p class="lead">
+            SmartLog Analyzer centraliza los logs de tus microservicios, los agrupa en patrones y usa un LLM para
+            decirte qué está fallando, qué tan grave es y qué hacer.
+          </p>
+          <div class="cta">
+            <a class="button button-primary" href="#empezar">Probalo en 2 minutos</a>
+            <a class="button button-ghost" href="https://github.com/peviss/smartlog-analyzer">Ver el código</a>
+          </div>
+          <figure class="shot shot-hero">
+            <img
+              src="assets/home.jpg"
+              alt="Pantalla de inicio de SmartLog: logs, errores y tasa de error del período, errores por hora, servicios con más errores y últimos errores"
+              width="1456"
+              height="819"
+            />
+          </figure>
+        </div>
+      </section>
+
+      <!-- Value strip -->
+      <section class="strip" aria-label="Qué resuelve">
+        <div class="container strip-inner">
+          <div>
+            <strong>Miles de líneas</strong>
+            <span>se agrupan en unas decenas de patrones antes de llegar al modelo</span>
+          </div>
+          <div>
+            <strong>Cualquier formato</strong>
+            <span>ECS, syslog, nginx, logfmt, OpenTelemetry, GELF, CSV…</span>
+          </div>
+          <div>
+            <strong>Sin vendor lock-in</strong>
+            <span>Anthropic, OpenAI, Gemini, Ollama local, o un mock sin costo</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features -->
+      <section class="section" id="funciones" aria-labelledby="funciones-title">
+        <div class="container">
+          <p class="eyebrow">Funciones</p>
+          <h2 id="funciones-title">Del log crudo a la acción concreta</h2>
+          <div class="features">
+            <article class="feature">
+              <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></div>
+              <h3>Ingesta en cualquier formato</h3>
+              <p>
+                Documentos ECS por API, o archivos crudos: texto plano (syslog, access logs de nginx y Apache, klog,
+                logfmt, Python, logback), JSON (OpenTelemetry, GELF, Serilog, CloudWatch, Google Cloud, Docker) y
+                CSV. Todo se normaliza a ECS.
+              </p>
+            </article>
+            <article class="feature">
+              <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg></div>
+              <h3>Análisis con IA</h3>
+              <p>
+                Un resumen en lenguaje claro, los problemas agrupados por categoría y severidad, y acciones concretas
+                con prioridad. La respuesta del modelo se valida contra un esquema: si no cumple, se reintenta.
+              </p>
+            </article>
+            <article class="feature">
+              <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg></div>
+              <h3>Patrones antes que tokens</h3>
+              <p>
+                Antes de llamar al LLM, los mensajes se agrupan en plantillas con conteos y servicios afectados. El
+                prompt es chico, barato y enfocado, y los números los calcula el código, no el modelo.
+              </p>
+            </article>
+            <article class="feature">
+              <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></div>
+              <h3>El estado de un vistazo</h3>
+              <p>
+                Logs, errores, tasa de error y servicios afectados del período, comparados con el anterior. Cada número
+                lleva al detalle ya filtrado.
+              </p>
+            </article>
+            <article class="feature">
+              <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4 3 8l4 4"/><path d="M3 8h14"/><path d="m17 12 4 4-4 4"/><path d="M21 16H7"/></svg></div>
+              <h3>El modelo que prefieras</h3>
+              <p>
+                Cambiá de proveedor con una variable de entorno. Ollama corre modelos en tu máquina sin que los logs
+                salgan de tu red, y el mock permite probar todo sin API key.
+              </p>
+            </article>
+            <article class="feature">
+              <div class="feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></div>
+              <h3>Nada se pierde</h3>
+              <p>
+                Los reintentos no duplican logs (<code>event.id</code>), el evento original se puede guardar tal cual
+                llegó, y cada suposición de la normalización queda marcada con un tag visible.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- How it works -->
+      <section class="section section-alt" id="como-funciona" aria-labelledby="como-title">
+        <div class="container">
+          <p class="eyebrow">Cómo funciona</p>
+          <h2 id="como-title">Tres pasos</h2>
+          <ol class="steps">
+            <li>
+              <span class="step-number">1</span>
+              <h3>Mandá tus logs</h3>
+              <p>
+                Por API (<code>POST /api/logs/batch</code>) desde tu collector, o importando un archivo desde la UI.
+                Los registros inválidos vuelven con su número de línea; el resto se guarda.
+              </p>
+            </li>
+            <li>
+              <span class="step-number">2</span>
+              <h3>Explorá</h3>
+              <p>
+                Filtrá por servicio, nivel, entorno, host, traza o texto. Mirá la evolución por hora o por día y qué
+                servicios concentran los errores.
+              </p>
+            </li>
+            <li>
+              <span class="step-number">3</span>
+              <h3>Analizá con IA</h3>
+              <p>
+                Elegí un período o un conjunto de logs y obtené un resumen, las categorías de problemas y las acciones
+                sugeridas, con enlaces a los logs de ejemplo.
+              </p>
+            </li>
+          </ol>
+          <figure class="shot">
+            <img
+              src="assets/analysis.jpg"
+              alt="Resultado de un análisis: resumen, problemas encontrados por severidad y acciones sugeridas con prioridad"
+              width="1456"
+              height="819"
+              loading="lazy"
+            />
+            <figcaption>Un análisis: resumen, problemas por severidad y acciones sugeridas.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <!-- Import -->
+      <section class="section" aria-labelledby="import-title">
+        <div class="container split">
+          <div>
+            <p class="eyebrow">Importación</p>
+            <h2 id="import-title">Pegá un archivo, no un parser</h2>
+            <p>
+              Cada línea se reconoce por su formato y se traduce a ECS: niveles, timestamps en cualquier formato,
+              servicios, hosts, trazas y stack traces. Las líneas que una app escribe dentro de syslog o de un
+              contenedor se vuelven a parsear, así un JSON dentro de syslog conserva sus campos.
+            </p>
+            <ul class="checks">
+              <li>Errores con su número de línea, sin rechazar el archivo entero</li>
+              <li>Nombres de campo en cualquier estilo: <code>traceId</code>, <code>trace_id</code>, <code>TraceId</code></li>
+              <li>Hasta 10.000 registros o 5 MB por importación</li>
+            </ul>
+          </div>
+          <figure class="shot">
+            <img
+              src="assets/import.jpg"
+              alt="Panel de importación con un archivo de logs en varios formatos y el resultado: registros guardados, duplicados y rechazados"
+              width="1456"
+              height="819"
+              loading="lazy"
+            />
+          </figure>
+        </div>
+      </section>
+
+      <!-- Get started -->
+      <section class="section section-alt" id="empezar" aria-labelledby="empezar-title">
+        <div class="container split">
+          <div>
+            <p class="eyebrow">Empezar</p>
+            <h2 id="empezar-title">Corre en tu máquina en 2 minutos</h2>
+            <p>
+              Solo necesitás Docker. Se levanta con datos de ejemplo y con el modelo mock, así que podés probar el
+              análisis sin API key ni costo.
+            </p>
+            <p>
+              Para usar un modelo real, configurá <code>LLM_PROVIDER</code> y <code>LLM_API_KEY</code> en
+              <code>.env</code>.
+            </p>
+            <div class="cta">
+              <a class="button button-primary" href="https://github.com/peviss/smartlog-analyzer#cómo-levantar"
+                >Guía de instalación</a
+              >
+              <a class="button button-ghost" href="https://github.com/peviss/smartlog-analyzer/blob/main/ARCHITECTURE.md"
+                >Arquitectura</a
+              >
+            </div>
+          </div>
+          <pre class="code" aria-label="Comandos para levantar SmartLog"><code><span class="c"># 1. Bajá el código</span>
+git clone https://github.com/peviss/smartlog-analyzer.git
+cd smartlog-analyzer
+
+<span class="c"># 2. Configurá y levantá</span>
+cp .env.example .env
+docker compose up -d --build
+
+<span class="c"># 3. Abrí la UI</span>
+open http://localhost:8080</code></pre>
+        </div>
+      </section>
+
+      <!-- Stack -->
+      <section class="section" aria-labelledby="stack-title">
+        <div class="container">
+          <p class="eyebrow">Stack</p>
+          <h2 id="stack-title">Tecnología probada, nada exótico</h2>
+          <ul class="stack">
+            <li><strong>FastAPI</strong><span>API async en Python 3.13</span></li>
+            <li><strong>PostgreSQL 16</strong><span>con índices para filtros y búsqueda de texto</span></li>
+            <li><strong>Pydantic AI</strong><span>salida estructurada y validada del LLM</span></li>
+            <li><strong>React + TypeScript</strong><span>cliente tipado desde el OpenAPI</span></li>
+            <li><strong>Elastic Common Schema</strong><span>el estándar de campos de logs</span></li>
+            <li><strong>Docker Compose</strong><span>nginx, API y base en una red aislada</span></li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer-inner">
+        <div class="brand">
+          <img src="assets/logo.svg" alt="" width="22" height="22" />
+          <span>SmartLog Analyzer</span>
+        </div>
+        <nav aria-label="Enlaces">
+          <a href="https://github.com/peviss/smartlog-analyzer">Código</a>
+          <a href="https://github.com/peviss/smartlog-analyzer#api">API</a>
+          <a href="https://github.com/peviss/smartlog-analyzer/blob/main/ARCHITECTURE.md">Arquitectura</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>
