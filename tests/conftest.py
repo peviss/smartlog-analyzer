@@ -48,6 +48,8 @@ def _db_available() -> bool:
 @pytest.fixture(scope="session")
 def migrated_db():
     if not _db_available():
+        if os.environ.get("REQUIRE_TEST_DB"):
+            pytest.fail(f"PostgreSQL not reachable at TEST_DATABASE_URL={TEST_DATABASE_URL}")
         pytest.skip(f"PostgreSQL not reachable at TEST_DATABASE_URL={TEST_DATABASE_URL}")
     cfg = Config("alembic.ini")
     cfg.set_main_option("sqlalchemy.url", TEST_DATABASE_URL)
